@@ -194,8 +194,8 @@ render_staging() {
 # the daemon it switched to root.
 guest() {
   case "$SHAPE" in
-    kernelSU) "$ADB" shell "su -c '$1'" ;;
-    writable-system) "$ADB" shell "$1" ;;
+    kernelSU) "$ADB" shell "su -c '$1'" </dev/null ;;
+    writable-system) "$ADB" shell "$1" </dev/null ;;
   esac
 }
 
@@ -598,7 +598,7 @@ case "$REMOVE" in
   *) fail "the removal script does not remove the module this script installed: $MODULE_DIRECTORY" ;;
 esac
 case "$REMOVE" in
-  *"ENTRY=$MODULE_DIRECTORY/$STORE_NAME"*) ;;
+  *"ENTRY=$MODULE_DIRECTORY/$STORE_NAME"*|*"ENTRY=\$MODDIR/$STORE_NAME"*) ;;
   *) fail "the removal script does not name the entry this script installed: $STORE_NAME" ;;
 esac
 case "$REMOVE" in
