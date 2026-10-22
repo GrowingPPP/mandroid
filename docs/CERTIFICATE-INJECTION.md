@@ -1,7 +1,7 @@
 # Certificate injection for HTTPS capture
 
-Status: implemented. Runtime verification is incomplete; §9 records what has
-and has not run.
+Status: implemented. The KernelSU path is verified on device; the
+writable-system path is not. §9 records what has and has not run.
 
 Goal: let a user point Mandroid at a debugging proxy running on the Mac
 (Reqable, Charles, mitmproxy, Proxyman) and have guest apps trust that proxy's
@@ -263,32 +263,38 @@ pasted text, malformed input), resolver strategy order and fallbacks against a
 stub proxy, the pre-flight chain check with a correct and a foreign CA, module
 rendering, injector command lists, launch-option composition, session-shape
 classification and injector/removal selection, and per-AVD record read/write.
-The suite passes on this branch (158 tests in 40 suites at the time of
+The suite passes on this branch (184 tests in 40 suites at the time of
 writing).
 
-Three runtime verifications have not run. Nothing in this document should be
-read as evidence that they did:
+What has run on device:
 
-- The guest-side acceptance script, `Scripts/capture-certificate-test.sh`, has
-  never been executed against an emulator. It passes `sh -n`, its rendered
-  procedures were compared byte for byte with the Swift renderers, and its
-  drift guards were shown to fire on mutation, but the lifecycle it describes —
-  install, namespace visibility, reboot, re-apply, removal — is unexercised.
-- The Settings section was checked by building the app and running the unit
-  suite. The manual check against a rooted session, recorded in
-  [the plan](CERTIFICATE-INJECTION-PLAN.md), did not run.
+- The guest-side acceptance script, `Scripts/capture-certificate-test.sh`, with
+  `--shape kernelSU` against a Play image booted from the shell-root ramdisk:
+  install, entry visibility in the shell's and zygote64's mount namespaces, the
+  reboot, the module's boot-time rebuild, and removal. It passes. The run also
+  exposed two defects in the script itself, both fixed: the adb shell consumed
+  the script's own command list from standard input, and the removal drift
+  guard rejected the `$MODDIR` form the removal script uses.
+- The Settings section, against a rooted KernelSU session: choosing a
+  certificate file installs it, the status line reports it, and a real app
+  (`com.xiaomi.im.wms`) with a per-app proxy set through Mandroid reached a
+  Reqable instance on the host. Before the install the proxy recorded a client
+  TLS handshake failure; after it, the same request was captured decrypted.
+  Turning that app's proxy off returned it to a direct, working request.
+
+What has not run:
+
 - The writable-system live path — `adb root`, the writable system image,
   install, reboot, the runner's post-boot re-apply, and removal — has never run
-  on an emulator.
+  on an emulator. The acceptance script's writable-system shape has not run
+  either, for the same missing image.
+- No app that pins its own certificate has been tried. The statement that such
+  apps still fail is carried over from the design, not measured alongside the
+  run above. Chrome remains excluded as evidence for or against trust.
 
 The acceptance script's removal step unmounts the trust-store paths in every
 mount namespace, which tears down an in-use capture session until the device
 reboots. It must only be pointed at a scratch emulator.
-
-End-to-end evidence — with the target app and its per-app proxy set, confirming
-that HTTPS requests appear decrypted and that a pinned app still fails — is
-likewise outstanding. Chrome is explicitly excluded as evidence for or against
-trust.
 
 ## 10. Work breakdown
 
@@ -313,8 +319,8 @@ Recorded during the final review and deliberately left out of the first
 release. None of these blocks the feature; each is a place the next change
 should tighten.
 
-Device verification comes first: §9 lists the three runs that never happened,
-and nothing below replaces them.
+Device verification comes first: §9 records what has run and what has not, and
+nothing below replaces the writable-system path.
 
 - **The init mount namespace refuses the store bind.** Measured on the Play
   image with a shell-root ramdisk: the service script prints
