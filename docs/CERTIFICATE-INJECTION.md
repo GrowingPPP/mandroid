@@ -80,6 +80,10 @@ image (API 36), KernelSU v3.3.0 LKM on a patched ramdisk.
   into every existing mount namespace, zygote included, and then the target app
   is started. The validated end-to-end path was injection at boot followed by an
   app cold start.
+- The bind does not reach every namespace. On the Play image the init namespace
+  refuses it while the shell's own namespace and zygote64's accept it, so apps
+  trust the certificate and the processes that stay in the init namespace do
+  not; see §11.
 - A KernelSU module's `service.sh` runs late enough that the APEX store exists,
   and early enough that user apps start afterwards. Injection from
   `post-fs-data.sh` is unsafe: the APEX may not be mounted yet, which would copy
@@ -311,6 +315,18 @@ should tighten.
 
 Device verification comes first: §9 lists the three runs that never happened,
 and nothing below replaces them.
+
+- **The init mount namespace refuses the store bind.** Measured on the Play
+  image with a shell-root ramdisk: the service script prints
+  `capture-ca: could not bind the store into mnt:[4026531841]`, and that inode
+  is the namespace init, logd, vold, keystore2 and the vendor HALs stay in. The
+  shell's namespace and zygote64's accept the bind, so apps read the injected
+  entry and the acceptance checks pass, but a process that never leaves the
+  init namespace does not see it. Why the bind fails there — SELinux policy for
+  the root context KernelSU hands the shell, or the read-only APEX mount in
+  that namespace — was not determined. Either show the failure cannot matter
+  for the processes involved, or report it as its own state instead of one
+  line of standard error the install ignores.
 
 - **Acceptance-script regression test.** The fake-adb harness that exercised
   the script's device path was written during development and never landed. It
