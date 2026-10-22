@@ -96,10 +96,12 @@ image (API 36), KernelSU v3.3.0 LKM on a patched ramdisk.
 - With KernelSU's shipped patched ramdisk, `adb shell` is not root: the ramdisk
   is patched without `--allow-shell`. A root shell is what performs the install,
   so the feature needs a ramdisk variant that grants it (§4).
-- CA endpoint probe from the same session, through a Reqable instance on the
-  host: `chls.pro/ssl` did not resolve, and `mitm.it` returned a short text page
-  rather than a certificate. No generic "download your CA" endpoint answered.
-  CA acquisition therefore cannot rely on a single well-known URL.
+- CA endpoint probe through a Reqable instance on the host: `chls.pro/ssl` did
+  not resolve, and `mitm.it` answered 404 (an earlier release answered with a
+  short text page instead of a certificate). No generic "download your CA"
+  endpoint answered, so acquisition cannot rely on a single well-known URL.
+  Reqable 3.3.1 does present its CA in the handshake chain, which is the
+  strategy that answers for it (§7).
 
 ## 3. Components
 
@@ -228,8 +230,9 @@ boot, not unconditionally persistent.
    (`mitm.it`), Charles (`chls.pro/ssl`), and similar documented endpoints.
 3. Issuer extraction from a live handshake: connect through the proxy to the
    canary host and take the issuing CA from the presented chain, when the proxy
-   includes it. Reqable's current release sends only the leaf certificate, so
-   this strategy fails against it.
+   includes it. Reqable 3.3.1 includes its CA, so this is the strategy that
+   answers for it; the release measured earlier sent only the leaf, which left
+   manual selection as the fallback.
 
 The automatic strategies report their outcome so the UI can explain why they
 fell through, and manual selection is offered again at that point. Reading a
@@ -281,6 +284,11 @@ What has run on device:
   Reqable instance on the host. Before the install the proxy recorded a client
   TLS handshake failure; after it, the same request was captured decrypted.
   Turning that app's proxy off returned it to a direct, working request.
+- Every acquisition path in Settings, against Reqable 3.3.1 on the host: the
+  file picker, pasted PEM, and **Get from Proxy…** all resolve to the same
+  certificate (`0a65b4da.0`, valid to 2033-05-31) and complete the install.
+  The proxy path resolves it through the handshake chain, not through a
+  download endpoint.
 
 What has not run:
 
